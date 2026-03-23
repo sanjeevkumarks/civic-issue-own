@@ -12,13 +12,15 @@ const router = express.Router();
 
 router.get("/stats", protect, authorize("Admin"), async (req, res) => {
   try {
-    const [total, pending, resolved] = await Promise.all([
+    const [total, pending, inProgress, resolved, slaBreached] = await Promise.all([
       Complaint.countDocuments(),
       Complaint.countDocuments({ status: "Pending" }),
-      Complaint.countDocuments({ status: "Resolved" })
+      Complaint.countDocuments({ status: "In Progress" }),
+      Complaint.countDocuments({ status: "Resolved" }),
+      Complaint.countDocuments({ slaBreached: true })
     ]);
 
-    return res.json({ total, pending, resolved });
+    return res.json({ total, pending, inProgress, resolved, slaBreached });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
@@ -77,7 +79,7 @@ router.get("/users", protect, authorize("Admin"), async (req, res) => {
 
 router.put("/users/:id", protect, authorize("Admin"), async (req, res) => {
   try {
-    const { name, role, department } = req.body;
+    const { name, role, department, phone, whatsappOptIn } = req.body;
 
     const user = await User.findById(req.params.id);
     if (!user) {
@@ -87,6 +89,8 @@ router.put("/users/:id", protect, authorize("Admin"), async (req, res) => {
     if (name) user.name = name;
     if (role) user.role = role;
     if (department !== undefined) user.department = canonicalDepartmentName(department);
+    if (phone !== undefined) user.phone = String(phone).trim();
+    if (whatsappOptIn !== undefined) user.whatsappOptIn = Boolean(whatsappOptIn);
 
     await user.save();
     return res.json({
@@ -94,7 +98,9 @@ router.put("/users/:id", protect, authorize("Admin"), async (req, res) => {
       name: user.name,
       email: user.email,
       role: user.role,
-      department: user.department
+      department: user.department,
+      phone: user.phone || "",
+      whatsappOptIn: Boolean(user.whatsappOptIn)
     });
   } catch (error) {
     return res.status(500).json({ message: error.message });

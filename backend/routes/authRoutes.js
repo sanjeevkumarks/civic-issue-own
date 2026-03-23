@@ -18,12 +18,14 @@ const sanitizeUser = (user) => ({
   name: user.name,
   email: user.email,
   role: user.role,
-  department: user.department
+  department: user.department,
+  phone: user.phone || "",
+  whatsappOptIn: Boolean(user.whatsappOptIn)
 });
 
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, password, role, department } = req.body;
+    const { name, email, password, role, department, phone, whatsappOptIn } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: "name, email and password are required" });
@@ -44,7 +46,9 @@ router.post("/register", async (req, res) => {
       email: email.toLowerCase(),
       password: hashedPassword,
       role: finalRole,
-      department: canonicalDepartmentName(department || "General Civic")
+      department: canonicalDepartmentName(department || "General Civic"),
+      phone: String(phone || "").trim(),
+      whatsappOptIn: Boolean(whatsappOptIn)
     });
 
     const token = signToken(user._id);

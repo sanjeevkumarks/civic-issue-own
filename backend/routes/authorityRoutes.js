@@ -1,12 +1,16 @@
 const express = require("express");
 
 const Complaint = require("../models/Complaint");
+const User = require("../models/User");
 const { protect, authorize } = require("../middleware/auth");
 const { createNotification } = require("../utils/notify");
 const {
   canonicalDepartmentName,
   normalizeDepartmentName
 } = require("../utils/departmentName");
+const { sendPushToUser } = require("../utils/push");
+const { sendWhatsApp } = require("../utils/whatsapp");
+const { getIO } = require("../utils/socket");
 
 const router = express.Router();
 
@@ -68,6 +72,10 @@ router.put("/complaints/:id", protect, authorize("Authority"), async (req, res) 
     if (complaint.status === "Resolved" && complaint.progress < 100) {
       complaint.progress = 100;
     }
+    complaint.updatedBy = req.user._id;
+    if (complaint.status === "Resolved" && !complaint.resolvedAt) {
+      complaint.resolvedAt = new Date();
+    }
 
     const updated = await complaint.save();
 
@@ -75,6 +83,25 @@ router.put("/complaints/:id", protect, authorize("Authority"), async (req, res) 
       complaint.createdBy,
       `Your complaint \"${complaint.title}\" is now ${updated.status} (${updated.progress}% complete).`
     );
+    await sendPushToUser(complaint.createdBy, {
+      title: "Complaint Updated",
+      body: `${complaint.title} is now ${updated.status}`,
+      complaintId: complaint._id
+    });
+
+    const citizen = await User.findById(complaint.createdBy).select("name phone whatsappOptIn");
+    if (citizen?.phone && citizen?.whatsappOptIn) {
+      await sendWhatsApp(
+        citizen.phone,
+        `Hello ${citizen.name}, your complaint #${complaint._id} (${complaint.title}) status has been updated to ${updated.status}. Track it in app.`
+      );
+    }
+
+    const io = getIO();
+    if (io) {
+      io.to(`complaint:${complaint._id}`).emit("complaints:updated", updated);
+      io.emit("complaints:updated", updated);
+    }
 
     return res.json(updated);
   } catch (error) {

@@ -10,7 +10,8 @@ import AuthorityDashboard from "./pages/AuthorityDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import NotificationsPage from "./pages/NotificationsPage";
 import ComplaintDetailPage from "./pages/ComplaintDetailPage";
-import { useUI } from "./context/UIContext";
+import ExplorePage from "./pages/ExplorePage";
+import ProfilePage from "./pages/ProfilePage";
 
 const HomeRedirect = () => {
   const { user } = useAuth();
@@ -21,8 +22,6 @@ const HomeRedirect = () => {
 };
 
 const App = () => {
-  const { mode } = useUI();
-
   return (
     <AppLayout>
       <Routes>
@@ -33,6 +32,8 @@ const App = () => {
         <Route element={<ProtectedRoute roles={["Citizen"]} />}>
           <Route path="/citizen" element={<CitizenDashboard />} />
           <Route path="/report" element={<ReportComplaintPage />} />
+          <Route path="/explore" element={<ExplorePage />} />
+          <Route path="/profile" element={<ProfilePage />} />
         </Route>
 
         <Route element={<ProtectedRoute roles={["Authority"]} />}>
@@ -55,4 +56,3 @@ const App = () => {
 };
 
 export default App;
-

@@ -6,6 +6,7 @@ import { cn } from "../utils/ui";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
+import { getSocket } from "../socket";
 import { 
   Printer, 
   MapPin, 
@@ -14,7 +15,8 @@ import {
   Building2, 
   ChevronLeft,
   ExternalLink,
-  MessageSquare
+  MessageSquare,
+  Send
 } from "lucide-react";
 
 const uploadsBase = import.meta.env.VITE_UPLOADS_URL || "http://localhost:5000";
@@ -24,14 +26,20 @@ const ComplaintDetailPage = () => {
   const navigate = useNavigate();
   const { isGov, mode } = useUI();
   const [complaint, setComplaint] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [chatDraft, setChatDraft] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     const fetchComplaint = async () => {
       try {
-        const { data } = await api.get(`/complaints/${id}`);
-        setComplaint(data);
+        const [complaintRes, chatRes] = await Promise.all([
+          api.get(`/complaints/${id}`),
+          api.get(`/chat/${id}`)
+        ]);
+        setComplaint(complaintRes.data);
+        setMessages(chatRes.data);
       } catch (err) {
         setError("Failed to load complaint details");
       } finally {
@@ -40,6 +48,25 @@ const ComplaintDetailPage = () => {
     };
     fetchComplaint();
   }, [id]);
+
+  useEffect(() => {
+    const socket = getSocket();
+    socket.emit("chat:join", id);
+    const handler = (msg) => {
+      if (String(msg.complaintId) === String(id)) {
+        setMessages((prev) => [...prev, msg]);
+      }
+    };
+    socket.on("chat:new-message", handler);
+    return () => socket.off("chat:new-message", handler);
+  }, [id]);
+
+  const sendMessage = async () => {
+    const text = chatDraft.trim();
+    if (!text) return;
+    setChatDraft("");
+    await api.post(`/chat/${id}`, { message: text });
+  };
 
   const handlePrint = () => {
     window.print();
@@ -143,6 +170,33 @@ const ComplaintDetailPage = () => {
                   </p>
                 </div>
               </div>
+            </div>
+          </Card>
+
+          <Card className="p-8">
+            <h4 className="text-xs font-black uppercase tracking-widest text-brand-primary mb-4 flex items-center gap-2">
+              <MessageSquare size={16} /> Complaint Chat
+            </h4>
+            <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
+              {messages.map((m) => (
+                <div key={m._id || `${m.timestamp}-${m.senderId}`} className="p-3 rounded-xl bg-brand-border/20">
+                  <p className="text-xs font-black uppercase tracking-wider text-brand-muted">{m.senderName}</p>
+                  <p className="text-sm">{m.message}</p>
+                  <p className="text-[10px] text-brand-muted">{new Date(m.timestamp || m.createdAt).toLocaleString()}</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex gap-2">
+              <input
+                className="flex-1 px-3 py-2 rounded-xl border border-brand-border bg-brand-panel"
+                placeholder="Type message..."
+                value={chatDraft}
+                onChange={(e) => setChatDraft(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+              />
+              <Button type="button" onClick={sendMessage}>
+                <Send size={16} />
+              </Button>
             </div>
           </Card>
         </div>

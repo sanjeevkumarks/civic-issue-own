@@ -21,8 +21,10 @@ export const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navLinks = [
-    { label: "Dashboard", path: user?.role === "admin" ? "/admin" : user?.role === "authority" ? "/authority" : "/citizen" },
-    { label: "Report Issue", path: "/report", roles: ["citizen"] },
+    { label: "Dashboard", path: user?.role === "Admin" ? "/admin" : user?.role === "Authority" ? "/authority" : "/citizen" },
+    { label: "Report Issue", path: "/report", roles: ["Citizen"] },
+    { label: "Explore", path: "/explore", roles: ["Citizen"] },
+    { label: "Profile", path: "/profile", roles: ["Citizen"] },
     { label: "Notifications", path: "/notifications" },
   ].filter(link => !link.roles || link.roles.includes(user?.role));
 

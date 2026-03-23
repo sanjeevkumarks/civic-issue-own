@@ -13,6 +13,14 @@ const userSchema = new mongoose.Schema(
     department: {
       type: String,
       default: "General Civic"
+    },
+    phone: {
+      type: String,
+      default: ""
+    },
+    whatsappOptIn: {
+      type: Boolean,
+      default: false
     }
   },
   { timestamps: true }

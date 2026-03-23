@@ -21,6 +21,7 @@ import {
   MapPin,
   ExternalLink
 } from "lucide-react";
+import { getSocket } from "../socket";
 
 const statuses = ["", "Pending", "In Progress", "Resolved"];
 
@@ -33,6 +34,7 @@ const AuthorityDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [drafts, setDrafts] = useState({});
   const [expandedId, setExpandedId] = useState(null);
+  const [onDuty, setOnDuty] = useState(false);
 
   const fetchComplaints = async (status = "") => {
     setLoading(true);
@@ -51,6 +53,32 @@ const AuthorityDashboard = () => {
   useEffect(() => {
     fetchComplaints(statusFilter);
   }, [statusFilter]);
+
+  useEffect(() => {
+    if (!onDuty) return;
+    const socket = getSocket();
+    const pushLocation = () => {
+      navigator.geolocation.getCurrentPosition((position) => {
+        socket.emit("agent:on-duty", {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          onDuty: true
+        });
+      });
+    };
+    pushLocation();
+    const timer = setInterval(pushLocation, 30000);
+    return () => {
+      clearInterval(timer);
+      navigator.geolocation.getCurrentPosition((position) => {
+        socket.emit("agent:on-duty", {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          onDuty: false
+        });
+      });
+    };
+  }, [onDuty]);
 
   const updateDraft = (id, updates) => {
     setDrafts((prev) => ({
@@ -105,6 +133,9 @@ const AuthorityDashboard = () => {
           <p className="text-brand-muted font-semibold italic">Official Department Oversight & Response System</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant={onDuty ? "danger" : "primary"} size="sm" onClick={() => setOnDuty((v) => !v)}>
+            {onDuty ? "Go Off Duty" : "Go On Duty"}
+          </Button>
           <div className="px-4 py-2 bg-brand-primary/10 rounded-full border border-brand-primary/20 flex items-center gap-2">
             <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
             <span className="text-xs font-black text-brand-primary uppercase tracking-widest">Connected to Gateway</span>
@@ -333,4 +364,3 @@ const AuthorityDashboard = () => {
 };
 
 export default AuthorityDashboard;
-

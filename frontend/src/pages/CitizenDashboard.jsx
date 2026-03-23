@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Search, Filter, ClipboardList, CheckCircle, Clock, AlertCircle } from "lucide-react";
+import { Plus, Search, Filter, ClipboardList, CheckCircle, Clock, AlertCircle, Heart, MessageSquare, Share2 } from "lucide-react";
 import ComplaintCard from "../components/ComplaintCard";
 import { StatWidget } from "../components/ui/StatWidget";
 import { Card } from "../components/ui/Card";
@@ -16,12 +16,18 @@ const CitizenDashboard = () => {
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState("all");
+  const [stories, setStories] = useState([]);
+  const [feed, setFeed] = useState([]);
+  const [commentDrafts, setCommentDrafts] = useState({});
 
   useEffect(() => {
     const fetchComplaints = async () => {
       try {
         const { data } = await api.get("/complaints/my");
         setComplaints(data);
+        const [storiesRes, feedRes] = await Promise.all([api.get("/social/stories"), api.get("/social/feed")]);
+        setStories(storiesRes.data);
+        setFeed(feedRes.data);
       } catch (err) {
         setError(err.response?.data?.message || "Failed to load complaints");
       } finally {
@@ -35,7 +41,7 @@ const CitizenDashboard = () => {
   const stats = {
     total: complaints.length,
     pending: complaints.filter(c => c.status?.toLowerCase() === "pending").length,
-    inProgress: complaints.filter(c => c.status?.toLowerCase() === "in-progress").length,
+    inProgress: complaints.filter(c => c.status?.toLowerCase() === "in progress").length,
     resolved: complaints.filter(c => c.status?.toLowerCase() === "resolved").length,
   };
 
@@ -52,6 +58,27 @@ const CitizenDashboard = () => {
       <p className="font-bold text-brand-muted uppercase tracking-widest">Loading Dashboard...</p>
     </div>
   );
+
+  const onSupport = async (id) => {
+    await api.post(`/social/complaints/${id}/upvote`);
+    const { data } = await api.get("/social/feed");
+    setFeed(data);
+  };
+
+  const onComment = async (id) => {
+    const text = commentDrafts[id]?.trim();
+    if (!text) return;
+    await api.post(`/social/complaints/${id}/comments`, { text });
+    setCommentDrafts((prev) => ({ ...prev, [id]: "" }));
+    const { data } = await api.get("/social/feed");
+    setFeed(data);
+  };
+
+  const onShare = async (id) => {
+    const link = `${window.location.origin}/complaints/${id}`;
+    await navigator.clipboard.writeText(link);
+    alert("Complaint link copied");
+  };
 
   return (
     <div className="space-y-8">
@@ -78,6 +105,22 @@ const CitizenDashboard = () => {
         <StatWidget label="In Progress" value={stats.inProgress} icon={Clock} color="warning" />
         <StatWidget label="Resolved" value={stats.resolved} icon={CheckCircle} color="success" />
       </div>
+
+      <Card className="p-4">
+        <h3 className="font-black uppercase tracking-widest text-xs text-brand-muted mb-3">Stories Updates</h3>
+        <div className="flex gap-3 overflow-x-auto">
+          {stories.length ? (
+            stories.map((story) => (
+              <div key={story._id} className="min-w-44 p-3 rounded-xl bg-brand-border/20">
+                <p className="text-xs font-black">{story.authorityName}</p>
+                <p className="text-xs text-brand-muted">{story.text || "Progress update posted"}</p>
+              </div>
+            ))
+          ) : (
+            <p className="text-xs text-brand-muted">No active stories</p>
+          )}
+        </div>
+      </Card>
 
       {/* Filters & Actions */}
       <Card className="p-4 flex flex-col md:flex-row gap-4 items-center">
@@ -134,6 +177,53 @@ const CitizenDashboard = () => {
           </div>
         </Card>
       )}
+
+      <section className="space-y-4">
+        <h3 className="text-xl font-black tracking-tight">Community Feed</h3>
+        {feed.map((post) => (
+          <Card key={post._id} className="p-4">
+            <div className="flex justify-between items-center mb-2">
+              <div>
+                <p className="font-bold">{post.createdBy?.name || "Citizen"}</p>
+                <p className="text-xs text-brand-muted">
+                  {post.area || "Unknown area"} • {new Date(post.createdAt).toLocaleString()}
+                </p>
+              </div>
+              <span className="text-xs font-black px-2 py-1 rounded-full bg-brand-primary/10 text-brand-primary">
+                {post.status}
+              </span>
+            </div>
+            <p className="font-semibold">{post.title}</p>
+            <p className="text-sm text-brand-muted">{post.description}</p>
+            <div className="mt-3 flex gap-2">
+              <Button variant="ghost" size="sm" onClick={() => onSupport(post._id)}>
+                <Heart size={14} className="mr-1" /> Support ({post.upvotesCount || 0})
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => onShare(post._id)}>
+                <Share2 size={14} className="mr-1" /> Share
+              </Button>
+            </div>
+            <div className="mt-3 space-y-2">
+              {(post.comments || []).slice(0, 3).map((comment) => (
+                <div key={comment._id} className="text-xs bg-brand-border/20 rounded-lg px-2 py-1">
+                  <strong>{comment.userName}:</strong> {comment.text}
+                </div>
+              ))}
+              <div className="flex gap-2">
+                <input
+                  className="flex-1 px-2 py-1 rounded-lg border border-brand-border"
+                  placeholder="Add public comment..."
+                  value={commentDrafts[post._id] || ""}
+                  onChange={(e) => setCommentDrafts((prev) => ({ ...prev, [post._id]: e.target.value }))}
+                />
+                <Button size="sm" onClick={() => onComment(post._id)}>
+                  <MessageSquare size={14} />
+                </Button>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </section>
     </div>
   );
 };

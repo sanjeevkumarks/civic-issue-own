@@ -31,6 +31,12 @@ const complaintSchema = new mongoose.Schema(
     progress: { type: Number, default: 0, min: 0, max: 100 },
     department: { type: String, default: "General Civic" },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    resolvedAt: { type: Date, default: null },
+    slaBreached: { type: Boolean, default: false },
+    escalated: { type: Boolean, default: false },
+    area: { type: String, default: "Unknown" },
+    upvotesCount: { type: Number, default: 0 },
     comments: [complaintCommentSchema],
     createdAt: { type: Date, default: Date.now }
   },

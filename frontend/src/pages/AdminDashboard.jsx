@@ -8,6 +8,7 @@ import { Button } from "../components/ui/Button";
 import { StatWidget } from "../components/ui/StatWidget";
 import { Select } from "../components/ui/Select";
 import { Input } from "../components/ui/Input";
+import AdvancedAnalyticsPanel from "../components/admin/AdvancedAnalyticsPanel";
 import { 
   Users, 
   Building2, 
@@ -37,7 +38,7 @@ const statusColors = {
 
 const AdminDashboard = () => {
   const { isGov, isSaas } = useUI();
-  const [stats, setStats] = useState({ total: 0, pending: 0, resolved: 0 });
+  const [stats, setStats] = useState({ total: 0, pending: 0, inProgress: 0, resolved: 0, slaBreached: 0 });
   const [complaints, setComplaints] = useState([]);
   const [users, setUsers] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -164,7 +165,7 @@ const AdminDashboard = () => {
           <p className="text-brand-muted font-semibold">Global System Administration & Analytics</p>
         </div>
         <div className="flex items-center gap-1 bg-brand-border/20 p-1 rounded-xl">
-          {["overview", "complaints", "users", "departments"].map(tab => (
+          {["overview", "analytics", "complaints", "users", "departments"].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -191,6 +192,8 @@ const AdminDashboard = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatWidget label="System Total" value={stats.total} icon={ClipboardList} color="primary" trend={12} />
             <StatWidget label="Active Pending" value={stats.pending} icon={AlertCircle} color="danger" trend={-5} />
+            <StatWidget label="In Progress" value={stats.inProgress} icon={TrendingUp} color="warning" />
+            <StatWidget label="SLA Breached" value={stats.slaBreached} icon={AlertCircle} color="danger" />
             <StatWidget label="Total Resolved" value={stats.resolved} icon={ShieldCheck} color="success" trend={24} />
             <StatWidget label="Active Users" value={users.length} icon={Users} color="warning" />
           </div>
@@ -237,6 +240,8 @@ const AdminDashboard = () => {
           </div>
         </div>
       )}
+
+      {activeTab === "analytics" && <AdvancedAnalyticsPanel complaints={complaints} />}
 
       {activeTab === "complaints" && (
         <div className="space-y-6 animate-fade-in">
@@ -364,4 +369,3 @@ const AdminDashboard = () => {
 };
 
 export default AdminDashboard;
-

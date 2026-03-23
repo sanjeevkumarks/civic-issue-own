@@ -1,162 +1,100 @@
-# Digital Civic Response System
+# Digital Civic Response System (Advanced)
 
-Full-stack local web app for civic complaint reporting and response management.
+Full-stack civic platform with complaint management, geo analytics, social feed, chat, and real-time operations.
 
-## Tech Stack
-- Backend: Node.js + Express + Mongoose
-- Frontend: React (Vite)
-- Database: Local MongoDB (`mongodb://localhost:27017/civicDB`)
-- Maps: Leaflet.js + OpenStreetMap tiles
-- Reverse Geocoding: OpenStreetMap Nominatim API
-- Uploads: Multer storing files in local `backend/uploads`
-- Auth: JWT (stored in browser localStorage)
+## Stack
+- Frontend: React + Tailwind CSS + Leaflet + Recharts + jsPDF
+- Backend: Node.js + Express + Socket.io
+- Database: MongoDB local (`mongodb://localhost:27017/civicDB`)
+- Maps: OpenStreetMap + Leaflet (heatmap + marker clusters)
+- Push: Web Push API (VAPID)
+- WhatsApp: Twilio (optional)
 
-## Folder Structure
-```text
-Project/
-  backend/
-    config/
-      db.js
-    middleware/
-      auth.js
-      upload.js
-    models/
-      User.js
-      Complaint.js
-      Department.js
-      Notification.js
-    routes/
-      authRoutes.js
-      complaintRoutes.js
-      authorityRoutes.js
-      adminRoutes.js
-      notificationRoutes.js
-      departmentRoutes.js
-    utils/
-      departmentMapping.js
-      notify.js
-      seedData.js
-    uploads/
-      .gitkeep
-    .env.example
-    package.json
-    server.js
-  frontend/
-    public/
-    src/
-      components/
-      context/
-      pages/
-      api.js
-      App.jsx
-      main.jsx
-      styles.css
-    .env.example
-    index.html
-    package.json
-    vite.config.js
-  .gitignore
-  README.md
-```
+## New Advanced Features Implemented
+1. Complaint heatmap + marker cluster map (admin analytics)
+2. Area-density analysis and top-areas chart
+3. Weekly/monthly trend charts and category pie chart
+4. Department performance leaderboard + officer performance table
+5. Authority live location (on-duty mode, 30s updates via Socket.io)
+6. Geo-fence CRUD and in-zone detection on complaint creation
+7. SLA tracking/escalation and SLA breach stats
+8. CSV export (json2csv) and PDF export (jsPDF)
+9. Real-time complaint chat room per complaint
+10. Social feed: upvotes/support, comments, stories, explore, profile
+11. PWA basics: manifest + service worker + push subscription endpoints
+12. Optional WhatsApp status messages via Twilio
 
-## Core Features Implemented
-1. Authentication
-- Register/Login
-- Roles: `Citizen`, `Authority`, `Admin`
-- Password hashing with `bcryptjs`
-- JWT-protected APIs and role-based route checks
+## Backend New Collections
+- Messages
+- AgentLocation
+- GeoFences
+- Upvotes
+- PushSubscriptions
+- FeedComments
+- Stories
 
-2. Complaint Reporting (Citizen)
-- Fields: title, description, category, location, address, images
-- Embedded Leaflet map with click-to-pin
-- Use current location with browser geolocation
-- Reverse geocoding via Nominatim
-- Complaint saved with default status `Pending`, progress `0`
-
-3. Location UX
-- Complaint cards show address
-- Address opens `https://www.google.com/maps?q=<lat>,<lng>` in new tab
-
-4. Image Uploads
-- Multer stores files in `backend/uploads`
-- Backend serves `uploads` as static route (`/uploads/...`)
-- Images visible in complaint cards across roles
-
-5. Authority Dashboard
-- Shows complaints for authority's department
-- Filter by status (`Pending`, `In Progress`, `Resolved`)
-- Update status/progress and add comments
-- Citizen gets notification on update
-
-6. Admin Dashboard
-- View all complaints
-- Assign departments
-- Stats: total, pending, resolved
-- Manage users and departments
-
-7. Notifications
-- `Notification` collection with `userId`, `message`, `seen`, `createdAt`
-- Authorities notified on complaint creation
-- Citizens notified on complaint status/progress updates
-
-8. Database Collections
-- `Users`
-- `Complaints`
-- `Departments`
-- `Notifications`
-
-9. UI
-- Blue/white civic theme
-- Responsive layout
-- Complaint cards + status badges
-- Embedded map in report form
-- Image preview before upload
+## Key API Groups
+- `/api/analytics/*`
+- `/api/chat/*`
+- `/api/geofences/*`
+- `/api/live/*`
+- `/api/push/*`
+- `/api/export/*`
+- `/api/social/*`
 
 ## Local Setup
-### Prerequisites
-- Node.js 18+
-- npm
-- Local MongoDB service running
-
-### 1) Start MongoDB locally
-Ensure your MongoDB instance is running at:
+### 1) MongoDB
+Ensure local MongoDB is running on:
 `mongodb://localhost:27017/civicDB`
 
-### 2) Configure backend
+### 2) Backend
 ```bash
 cd backend
 cp .env.example .env
 npm install
 npm run dev
 ```
-Backend runs on `http://localhost:5000`.
 
-### 3) Configure frontend
-Open another terminal:
+### 3) Frontend
 ```bash
 cd frontend
 cp .env.example .env
 npm install
 npm run dev
 ```
-Frontend runs on `http://localhost:5173`.
 
-## Default Department Seeding
-On backend startup, if `Departments` is empty, the app auto-seeds:
-- Roads Department
-- Sanitation Department
-- Electrical Department
-- Drainage Department
-- Water Department
+Open: `http://localhost:5173`
 
-## API Summary
-- Auth: `/api/auth/*`
-- Complaints: `/api/complaints/*`
-- Authority actions: `/api/authority/*`
-- Admin actions: `/api/admin/*`
-- Notifications: `/api/notifications/*`
-- Departments: `/api/departments/*`
+## Push Notifications (optional)
+Set in `backend/.env`:
+- `VAPID_PUBLIC_KEY`
+- `VAPID_PRIVATE_KEY`
+- `VAPID_SUBJECT`
+
+Generate keys:
+```bash
+npx web-push generate-vapid-keys
+```
+
+## WhatsApp (optional)
+Set in `backend/.env`:
+- `WHATSAPP_ENABLED=true`
+- `TWILIO_ACCOUNT_SID`
+- `TWILIO_AUTH_TOKEN`
+- `TWILIO_WHATSAPP_FROM`
+
+Users can store `phone` and `whatsappOptIn` in profile/admin updates.
+
+## Real-time
+- Socket auth uses JWT token from frontend local storage
+- Rooms:
+  - `complaint:<complaintId>` for chat
+- Events:
+  - `chat:new-message`
+  - `complaints:new`
+  - `complaints:updated`
+  - `agent:location`
 
 ## Notes
-- This project uses only local development tools and local file storage.
-- No cloud services, paid APIs, or external object storage are used.
+- All features are implemented for local development.
+- For production, add stronger validation, pagination, and background jobs for SLA processing.

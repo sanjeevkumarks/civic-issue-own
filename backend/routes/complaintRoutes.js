@@ -1,7 +1,10 @@
 const express = require("express");
+const booleanPointInPolygon = require("@turf/boolean-point-in-polygon").default;
+const { point, polygon } = require("@turf/helpers");
 
 const Complaint = require("../models/Complaint");
 const User = require("../models/User");
+const GeoFence = require("../models/GeoFence");
 const upload = require("../middleware/upload");
 const { protect, authorize } = require("../middleware/auth");
 const { getDepartmentForCategory } = require("../utils/departmentMapping");
@@ -10,6 +13,10 @@ const {
   canonicalDepartmentName,
   normalizeDepartmentName
 } = require("../utils/departmentName");
+const { extractArea } = require("../utils/area");
+const { sendPushToUser } = require("../utils/push");
+const { sendWhatsApp } = require("../utils/whatsapp");
+const { getIO } = require("../utils/socket");
 
 const router = express.Router();
 
@@ -31,6 +38,7 @@ router.post("/", protect, authorize("Citizen"), upload.array("images", 5), async
       latitude: Number(latitude),
       longitude: Number(longitude),
       address,
+      area: extractArea(address),
       images: imagePaths,
       status: "Pending",
       progress: 0,
@@ -51,6 +59,47 @@ router.post("/", protect, authorize("Citizen"), upload.array("images", 5), async
       authorities.map((authority) => authority._id),
       `New complaint submitted: ${complaint.title} (${complaint.category})`
     );
+    await Promise.all(
+      authorities.map((authority) =>
+        sendPushToUser(authority._id, {
+          title: "New Complaint",
+          body: `${complaint.title} (${complaint.category})`,
+          complaintId: complaint._id
+        })
+      )
+    );
+
+    const p = point([complaint.longitude, complaint.latitude]);
+    const fences = await GeoFence.find({ department: complaint.department });
+    const inFences = fences.filter((f) => booleanPointInPolygon(p, polygon(f.coordinates)));
+    if (inFences.length) {
+      const targetIds = authorities.map((a) => a._id);
+      await createManyNotifications(
+        targetIds,
+        `Geo-fence alert: ${complaint.title} is inside a protected zone`
+      );
+      await Promise.all(
+        targetIds.map((id) =>
+          sendPushToUser(id, {
+            title: "Geo-fence Alert",
+            body: complaint.title,
+            complaintId: complaint._id
+          })
+        )
+      );
+    }
+
+    if (req.user.phone && req.user.whatsappOptIn) {
+      await sendWhatsApp(
+        req.user.phone,
+        `Hello ${req.user.name}, your complaint #${complaint._id} (${complaint.title}) is received. Track it in the app.`
+      );
+    }
+
+    const io = getIO();
+    if (io) {
+      io.emit("complaints:new", complaint);
+    }
 
     return res.status(201).json(complaint);
   } catch (error) {
