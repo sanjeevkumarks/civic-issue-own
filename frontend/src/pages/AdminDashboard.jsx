@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import api from "../api";
 import ComplaintCard from "../components/ComplaintCard";
 import { useUI } from "../context/UIContext";
@@ -38,6 +39,7 @@ const statusColors = {
 
 const AdminDashboard = () => {
   const { isGov, isSaas } = useUI();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [stats, setStats] = useState({ total: 0, pending: 0, inProgress: 0, resolved: 0, slaBreached: 0 });
   const [complaints, setComplaints] = useState([]);
   const [users, setUsers] = useState([]);
@@ -46,7 +48,7 @@ const AdminDashboard = () => {
   const [assignDrafts, setAssignDrafts] = useState({});
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("overview");
+  const activeTab = searchParams.get("tab") || "overview";
 
   const refresh = async () => {
     setError("");
@@ -168,7 +170,7 @@ const AdminDashboard = () => {
           {["overview", "analytics", "complaints", "users", "departments"].map(tab => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => setSearchParams(tab === "overview" ? {} : { tab })}
               className={cn(
                 "px-4 py-2 text-xs font-black uppercase tracking-widest transition-all rounded-lg",
                 activeTab === tab ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/20" : "text-brand-muted hover:text-brand-text"

@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
 const User = require("../models/User");
+const Department = require("../models/Department");
 const { protect } = require("../middleware/auth");
 const { canonicalDepartmentName } = require("../utils/departmentName");
 
@@ -39,6 +40,18 @@ router.post("/register", async (req, res) => {
       return res.status(409).json({ message: "Email already registered" });
     }
 
+    let finalDepartment = "General Civic";
+    if (finalRole === "Authority") {
+      if (!department) {
+        return res.status(400).json({ message: "Department is required for authority accounts" });
+      }
+      const matchedDepartment = await Department.findOne({ name: canonicalDepartmentName(department) });
+      if (!matchedDepartment) {
+        return res.status(400).json({ message: "Please select a valid department" });
+      }
+      finalDepartment = matchedDepartment.name;
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await User.create({
@@ -46,7 +59,7 @@ router.post("/register", async (req, res) => {
       email: email.toLowerCase(),
       password: hashedPassword,
       role: finalRole,
-      department: canonicalDepartmentName(department || "General Civic"),
+      department: finalDepartment,
       phone: String(phone || "").trim(),
       whatsappOptIn: Boolean(whatsappOptIn)
     });

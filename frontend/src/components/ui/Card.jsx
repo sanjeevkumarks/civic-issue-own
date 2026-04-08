@@ -7,9 +7,9 @@ export const Card = ({ children, className, ...props }) => {
   return (
     <div 
       className={cn(
-        "bg-brand-panel border-brand-border text-brand-text rounded-[var(--radius-card)] shadow-[var(--shadow-card)]",
+        "bg-white border border-gray-200 text-gray-900 rounded-xl shadow-lg",
         mode === "saas" && "backdrop-blur-md transition-all duration-300 hover:shadow-xl hover:-translate-y-1",
-        mode === "gov" && "border-l-4 border-l-brand-primary",
+        mode === "gov" && "border-l-4 border-l-blue-600",
         mode === "minimal" && "border-2",
         className
       )}

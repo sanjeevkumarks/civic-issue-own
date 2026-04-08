@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Search, Filter, ClipboardList, CheckCircle, Clock, AlertCircle, Heart, MessageSquare, Share2 } from "lucide-react";
+import { Plus, Search, ClipboardList, CheckCircle, Clock, AlertCircle, Heart, MessageSquare, Share2, MapPin } from "lucide-react";
 import ComplaintCard from "../components/ComplaintCard";
 import { StatWidget } from "../components/ui/StatWidget";
 import { Card } from "../components/ui/Card";
@@ -19,6 +19,7 @@ const CitizenDashboard = () => {
   const [stories, setStories] = useState([]);
   const [feed, setFeed] = useState([]);
   const [commentDrafts, setCommentDrafts] = useState({});
+  const uploadsBaseUrl = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/api$/, "");
 
   useEffect(() => {
     const fetchComplaints = async () => {
@@ -181,23 +182,58 @@ const CitizenDashboard = () => {
       <section className="space-y-4">
         <h3 className="text-xl font-black tracking-tight">Community Feed</h3>
         {feed.map((post) => (
-          <Card key={post._id} className="p-4">
-            <div className="flex justify-between items-center mb-2">
+          <Card key={post._id} className="mx-auto max-w-3xl overflow-hidden p-0">
+            {post.images?.length ? (
+              <div className="relative">
+                <img
+                  src={`${uploadsBaseUrl}${post.images[0]}`}
+                  alt={post.title}
+                  className="h-64 w-full object-cover md:h-72"
+                />
+                <span className="absolute right-3 top-3 text-xs font-black px-2 py-1 rounded-full bg-slate-950/70 text-white backdrop-blur">
+                  {post.status}
+                </span>
+              </div>
+            ) : null}
+            <div className="p-4">
+            <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="font-bold">{post.createdBy?.name || "Citizen"}</p>
                 <p className="text-xs text-brand-muted">
                   {post.area || "Unknown area"} • {new Date(post.createdAt).toLocaleString()}
                 </p>
               </div>
-              <span className="text-xs font-black px-2 py-1 rounded-full bg-brand-primary/10 text-brand-primary">
-                {post.status}
-              </span>
+              {!post.images?.length ? (
+                <span className="text-xs font-black px-2 py-1 rounded-full bg-brand-primary/10 text-brand-primary">
+                  {post.status}
+                </span>
+              ) : null}
             </div>
             <p className="font-semibold">{post.title}</p>
             <p className="text-sm text-brand-muted">{post.description}</p>
-            <div className="mt-3 flex gap-2">
-              <Button variant="ghost" size="sm" onClick={() => onSupport(post._id)}>
-                <Heart size={14} className="mr-1" /> Support ({post.upvotesCount || 0})
+            <a
+              href={`https://www.google.com/maps?q=${post.latitude},${post.longitude}`}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-3 inline-flex max-w-full items-start gap-2 text-sm font-semibold text-brand-primary hover:underline"
+            >
+              <MapPin size={14} className="mt-0.5 shrink-0" />
+              <span className="break-words">{post.address || post.area || "Open location"}</span>
+            </a>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "border transition-colors",
+                  post.likedByMe
+                    ? "border-rose-200 bg-rose-500 text-white hover:bg-rose-600"
+                    : "border-brand-border bg-white text-brand-text hover:bg-rose-50 hover:text-rose-600"
+                )}
+                onClick={() => onSupport(post._id)}
+              >
+                <Heart size={14} className={cn("mr-1", post.likedByMe && "fill-current")} />
+                Support ({post.upvotesCount || 0})
               </Button>
               <Button variant="ghost" size="sm" onClick={() => onShare(post._id)}>
                 <Share2 size={14} className="mr-1" /> Share
@@ -209,9 +245,9 @@ const CitizenDashboard = () => {
                   <strong>{comment.userName}:</strong> {comment.text}
                 </div>
               ))}
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <input
-                  className="flex-1 px-2 py-1 rounded-lg border border-brand-border"
+                  className="min-w-0 flex-1 px-2 py-1 rounded-lg border border-brand-border"
                   placeholder="Add public comment..."
                   value={commentDrafts[post._id] || ""}
                   onChange={(e) => setCommentDrafts((prev) => ({ ...prev, [post._id]: e.target.value }))}
@@ -220,6 +256,7 @@ const CitizenDashboard = () => {
                   <MessageSquare size={14} />
                 </Button>
               </div>
+            </div>
             </div>
           </Card>
         ))}

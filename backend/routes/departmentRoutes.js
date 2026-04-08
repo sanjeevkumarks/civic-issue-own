@@ -1,11 +1,10 @@
 const express = require("express");
 
 const Department = require("../models/Department");
-const { protect } = require("../middleware/auth");
 
 const router = express.Router();
 
-router.get("/", protect, async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const departments = await Department.find().sort({ name: 1 });
     return res.json(departments);

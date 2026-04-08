@@ -31,9 +31,18 @@ const mapColors = {
 
 const drawHeat = (map, points) => {
   const layer = L.heatLayer(points.map((p) => [p.lat, p.lng, p.weight]), {
-    radius: 28,
-    blur: 18,
-    maxZoom: 17
+    radius: 30,
+    blur: 22,
+    maxZoom: 17,
+    minOpacity: 0.45,
+    gradient: {
+      0.15: "#60a5fa",
+      0.35: "#2563eb",
+      0.55: "#14b8a6",
+      0.72: "#f59e0b",
+      0.88: "#f97316",
+      1.0: "#dc2626"
+    }
   });
   layer.addTo(map);
   return layer;

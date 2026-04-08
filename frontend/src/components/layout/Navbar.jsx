@@ -1,153 +1,133 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { useUI } from "../../context/UIContext";
-import { 
-  Sun, 
-  Moon, 
-  LogOut, 
-  Bell, 
-  Menu,
-  X
-} from "lucide-react";
-import { Button } from "../ui/Button";
-import { cn } from "../../utils/ui";
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
+import { Bell, LogOut, Menu, X, Sun, Moon } from "lucide-react";
+import { cn } from "../../utils/ui";
 
-export const Navbar = () => {
-  const { user, logout } = useAuth();
-  const { theme, toggleTheme, isSaas, isGov, isMinimal } = useUI();
+export const Navbar = ({ onToggleSidebar, sidebarOpen }) => {
+  const navigate = useNavigate();
   const location = useLocation();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, logout } = useAuth();
+  const [profileOpen, setProfileOpen] = useState(false);
 
-  const navLinks = [
-    { label: "Dashboard", path: user?.role === "Admin" ? "/admin" : user?.role === "Authority" ? "/authority" : "/citizen" },
-    { label: "Report Issue", path: "/report", roles: ["Citizen"] },
-    { label: "Explore", path: "/explore", roles: ["Citizen"] },
-    { label: "Profile", path: "/profile", roles: ["Citizen"] },
-    { label: "Notifications", path: "/notifications" },
-  ].filter(link => !link.roles || link.roles.includes(user?.role));
+  // Check if on login/register page
+  const isAuthPage = ["/login", "/register"].includes(location.pathname);
+
+  const navLinks = user?.role === "Citizen" 
+    ? [
+        { label: "Dashboard", path: "/citizen" },
+        { label: "Report Issue", path: "/report" },
+        { label: "Explore", path: "/explore" },
+        { label: "Profile", path: "/profile" },
+        { label: "Notifications", path: "/notifications" },
+      ]
+    : user?.role === "Authority"
+    ? [
+        { label: "Dashboard", path: "/authority" },
+        { label: "Reports", path: "/authority", search: "?tab=reports" },
+        { label: "Analytics", path: "/authority", search: "?tab=analytics" },
+        { label: "Profile", path: "/profile" },
+      ]
+    : user?.role === "Admin"
+    ? [
+        { label: "Dashboard", path: "/admin" },
+        { label: "Users", path: "/admin", search: "?tab=users" },
+        { label: "Reports", path: "/admin", search: "?tab=complaints" },
+        { label: "Analytics", path: "/admin", search: "?tab=analytics" },
+      ]
+    : [];
+
+  const isActiveLink = (link) => location.pathname === link.path && (location.search || "") === (link.search || "");
 
   return (
-    <nav className={cn(
-      "sticky top-4 z-50 w-[96%] max-w-7xl mx-auto mb-8 transition-all duration-300",
-      isSaas && "bg-brand-panel/60 backdrop-blur-xl border border-brand-border rounded-full px-6 py-2 shadow-xl",
-      isGov && "bg-brand-primary text-white rounded-sm px-6 py-3 shadow-md top-0 w-full max-w-none",
-      isMinimal && "bg-white dark:bg-slate-900 border-b-4 border-brand-primary rounded-none px-4 py-2 top-0 w-full max-w-none"
-    )}>
+    <nav className="sticky top-4 z-50 w-[96%] max-w-7xl mx-auto rounded-full bg-white/90 backdrop-blur-xl border border-gray-200 px-6 py-3 shadow-lg">
       <div className="flex items-center justify-between">
-        {/* Logo */}
-        <Link to="/" className="flex items-center gap-2 group">
-          <div className={cn(
-            "w-8 h-8 flex items-center justify-center font-black",
-            isSaas && "bg-gradient-to-br from-brand-primary to-purple-500 text-white rounded-lg rotate-3 group-hover:rotate-12 transition-transform",
-            isGov && "bg-white text-brand-primary rounded-none",
-            isMinimal && "border-2 border-brand-primary text-brand-primary"
-          )}>
-            D
+        {/* Logo & Branding */}
+        <Link to="/" className="flex items-center gap-2 flex-shrink-0">
+          <div className="w-8 h-8 flex items-center justify-center font-black text-white bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg">
+              D
+            </div>
+          <div className="hidden sm:block">
+            <div className="text-sm font-bold text-white">DCR</div>
+            <div className="text-xs text-slate-400">Civic System</div>
           </div>
-          <span className={cn(
-            "font-bold tracking-tighter text-xl hidden sm:block",
-            isSaas && "bg-gradient-to-r from-brand-primary to-purple-500 bg-clip-text text-transparent",
-            isGov && "text-white uppercase tracking-widest",
-            isMinimal && "text-brand-text"
-          )}>
-            Civic<span className="font-light">Response</span>
-          </span>
         </Link>
 
-        {/* Desktop Links */}
-        <div className="hidden md:flex items-center gap-1">
-          {navLinks.map(link => (
-            <Link 
-              key={link.path} 
-              to={link.path}
-              className={cn(
-                "px-4 py-2 text-sm font-semibold transition-all",
-                location.pathname === link.path 
-                  ? (isSaas ? "text-brand-primary bg-brand-primary/10 rounded-full" : isGov ? "bg-white/20" : "border-b-2 border-brand-primary")
-                  : (isSaas ? "text-brand-muted hover:text-brand-text" : isGov ? "text-white/80 hover:text-white" : "text-brand-muted hover:text-brand-text")
-              )}
-            >
-              {link.label}
-            </Link>
-          ))}
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2">
-          {/* Theme Toggle */}
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={toggleTheme}
-            className={cn(isGov && "text-white hover:bg-white/10", isSaas && "rounded-full")}
-          >
-            {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
-          </Button>
-
-          {/* User Section */}
-          {user ? (
-            <div className="flex items-center gap-2 pl-2 border-l border-brand-border/30 ml-2">
-              <Link to="/notifications" className="relative">
-                <Button variant="ghost" size="sm" className={cn(isGov && "text-white hover:bg-white/10", isSaas && "rounded-full")}>
-                  <Bell size={18} />
-                </Button>
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-ping" />
-              </Link>
-              
-              <div className="hidden sm:flex flex-col items-end mr-2">
-                <span className={cn("text-xs font-bold leading-none", isGov ? "text-white" : "text-brand-text")}>{user.name}</span>
-                <span className={cn("text-[10px] uppercase tracking-widest", isGov ? "text-white/70" : "text-brand-muted")}>{user.role}</span>
-              </div>
-              
-              <Button 
-                variant="danger" 
-                size="sm" 
-                onClick={logout}
-                className={cn(isSaas ? "rounded-full" : isMinimal ? "rounded-none" : "rounded-sm")}
-              >
-                <LogOut size={16} />
-              </Button>
-            </div>
-          ) : (
-            <Link to="/login">
-              <Button variant="primary" size="sm">Login</Button>
-            </Link>
-          )}
-
-          {/* Mobile Menu Toggle */}
-          <button 
-            className="md:hidden p-2"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          >
-            {mobileMenuOpen ? <X /> : <Menu className={isGov ? "text-white" : ""} />}
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile Menu */}
-      <AnimatePresence>
-        {mobileMenuOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="md:hidden overflow-hidden flex flex-col gap-2 pt-4 pb-2"
-          >
-            {navLinks.map(link => (
-              <Link 
-                key={link.path} 
-                to={link.path}
-                onClick={() => setMobileMenuOpen(false)}
-                className="py-2 px-4 rounded-lg bg-black/5 dark:bg-white/5 font-semibold"
+        {/* Navigation Links - Only for authenticated users */}
+        {user && !isAuthPage && (
+          <div className="hidden md:flex items-center gap-1">
+            {navLinks.map((link) => (
+              <Link
+                key={`${link.path}${link.search || ""}`}
+                to={`${link.path}${link.search || ""}`}
+                className={cn(
+                  "px-4 py-2 text-sm font-semibold rounded-lg transition-colors",
+                  isActiveLink(link)
+                    ? "text-blue-600"
+                    : "text-gray-700 hover:text-blue-600"
+                )}
               >
                 {link.label}
               </Link>
             ))}
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
+
+        {/* Right Section */}
+        <div className="flex items-center gap-3">
+          {/* Theme Toggle */}
+          <button className="p-2 hover:bg-gray-100 rounded-lg transition text-gray-600 hover:text-gray-900">
+            <Sun size={18} />
+          </button>
+
+          {/* Authenticated User Section */}
+          {user && !isAuthPage ? (
+            <>
+              {/* Notifications */}
+              <button
+                onClick={() => navigate("/notifications")}
+                className="relative p-2 hover:bg-gray-100 rounded-lg transition text-gray-600 hover:text-gray-900"
+              >
+                <Bell size={18} />
+                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+              </button>
+
+              {/* User Info & Logout */}
+              <div className="hidden sm:flex items-center gap-2 pl-3 border-l border-gray-200">
+                <div className="text-right">
+                  <div className="text-xs font-bold text-gray-900">{user.email}</div>
+                  <div className="text-xs text-gray-600 uppercase tracking-wider">{user.role}</div>
+                </div>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={logout}
+                  className="p-2 bg-red-600 hover:bg-red-700 rounded-lg transition text-white flex-shrink-0"
+                >
+                  <LogOut size={16} />
+                </motion.button>
+              </div>
+
+              {/* Mobile Menu Toggle */}
+              <button onClick={onToggleSidebar} className="md:hidden p-2 hover:bg-gray-100 rounded-lg transition text-gray-600">
+                {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
+              </button>
+            </>
+          ) : (
+            /* Login Button for unauthenticated */
+            <Link to="/login">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all"
+              >
+                Login
+              </motion.button>
+            </Link>
+          )}
+        </div>
+      </div>
     </nav>
   );
 };

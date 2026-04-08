@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { MapContainer, Marker, TileLayer } from "react-leaflet";
 import api from "../api";
 import { useUI } from "../context/UIContext";
 import { cn } from "../utils/ui";
@@ -20,6 +23,7 @@ import {
 } from "lucide-react";
 
 const uploadsBase = import.meta.env.VITE_UPLOADS_URL || "http://localhost:5000";
+const formatDateTime = (value) => new Date(value).toLocaleString();
 
 const ComplaintDetailPage = () => {
   const { id } = useParams();
@@ -68,8 +72,102 @@ const ComplaintDetailPage = () => {
     await api.post(`/chat/${id}`, { message: text });
   };
 
-  const handlePrint = () => {
-    window.print();
+  const getImageDataUrl = async (src) => {
+    const response = await fetch(src);
+    const blob = await response.blob();
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  const handlePrint = async () => {
+    const doc = new jsPDF();
+    const reporterName = complaint.createdBy?.name || "Anonymous";
+    const timelineRows = [
+      ...(complaint.comments || []).map((comment) => [
+        comment.byRole,
+        comment.text,
+        formatDateTime(comment.at || complaint.updatedAt)
+      ]),
+      ["Citizen", "Complaint registered", formatDateTime(complaint.createdAt)]
+    ];
+    const chatRows = (messages || []).map((message) => [
+      message.senderName,
+      message.message,
+      formatDateTime(message.timestamp || message.createdAt)
+    ]);
+
+    doc.setFontSize(18);
+    doc.text("Digital Civic Response System", 14, 18);
+    doc.setFontSize(10);
+    doc.text(`Case ID: ${complaint._id}`, 14, 25);
+    doc.text(`Generated: ${formatDateTime(new Date())}`, 140, 25);
+
+    doc.setFontSize(14);
+    doc.text(complaint.title, 14, 36);
+    doc.setFontSize(10);
+    doc.text(`Status: ${complaint.status}`, 14, 44);
+    doc.text(`Category: ${complaint.category}`, 70, 44);
+    doc.text(`Progress: ${complaint.progress}%`, 130, 44);
+    doc.text(`Department: ${complaint.department || "Unassigned"}`, 14, 51);
+    doc.text(`Reported By: ${reporterName}`, 110, 51);
+    doc.text(`Created At: ${formatDateTime(complaint.createdAt)}`, 14, 58);
+    if (complaint.resolvedAt) {
+      doc.text(`Resolved At: ${formatDateTime(complaint.resolvedAt)}`, 110, 58);
+    }
+
+    autoTable(doc, {
+      startY: 64,
+      theme: "grid",
+      head: [["Field", "Value"]],
+      body: [
+        ["Description", complaint.description],
+        ["Address", complaint.address],
+        ["Coordinates", `${complaint.latitude}, ${complaint.longitude}`],
+        ["Google Maps", `https://www.google.com/maps?q=${complaint.latitude},${complaint.longitude}`]
+      ],
+      styles: { fontSize: 9, cellPadding: 3, overflow: "linebreak" },
+      columnStyles: { 0: { cellWidth: 34 }, 1: { cellWidth: 146 } }
+    });
+
+    let cursorY = doc.lastAutoTable.finalY + 8;
+
+    if (complaint.images?.length) {
+      try {
+        const imageData = await getImageDataUrl(`${uploadsBase}${complaint.images[0]}`);
+        doc.setFontSize(12);
+        doc.text("Evidence Snapshot", 14, cursorY);
+        doc.addImage(imageData, "JPEG", 14, cursorY + 4, 80, 55);
+        cursorY += 65;
+      } catch (error) {
+        doc.setFontSize(10);
+        doc.text("Evidence image could not be embedded in the PDF.", 14, cursorY);
+        cursorY += 8;
+      }
+    }
+
+    autoTable(doc, {
+      startY: cursorY,
+      theme: "striped",
+      head: [["Timeline", "Update", "Timestamp"]],
+      body: timelineRows.length ? timelineRows : [["System", "No updates yet", "-"]],
+      styles: { fontSize: 9, overflow: "linebreak" }
+    });
+
+    cursorY = doc.lastAutoTable.finalY + 8;
+
+    autoTable(doc, {
+      startY: cursorY,
+      theme: "striped",
+      head: [["Chat User", "Message", "Timestamp"]],
+      body: chatRows.length ? chatRows : [["System", "No chat messages", "-"]],
+      styles: { fontSize: 9, overflow: "linebreak" }
+    });
+
+    doc.save(`case-file-${complaint._id}.pdf`);
   };
 
   if (loading) return <div className="p-20 text-center font-black animate-pulse uppercase tracking-[0.5em]">Loading Record...</div>;
@@ -206,11 +304,25 @@ const ComplaintDetailPage = () => {
             <h4 className="text-xs font-black uppercase tracking-widest text-brand-primary mb-4">Location Data</h4>
             <div className="space-y-4">
               <div className="aspect-square rounded-xl bg-slate-100 border border-brand-border overflow-hidden relative group">
-                <div className="absolute inset-0 flex items-center justify-center bg-slate-900/10">
-                  <MapPin size={48} className="text-brand-primary animate-bounce" />
-                </div>
-                <div className="absolute bottom-4 left-4 right-4 bg-brand-panel/90 backdrop-blur-md p-3 rounded-lg border border-brand-border text-[10px] font-bold print:hidden">
+                <MapContainer
+                  center={[complaint.latitude, complaint.longitude]}
+                  zoom={16}
+                  scrollWheelZoom={false}
+                  zoomControl={false}
+                  style={{ height: "100%", width: "100%" }}
+                  className="z-0"
+                >
+                  <TileLayer
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  />
+                  <Marker position={[complaint.latitude, complaint.longitude]} />
+                </MapContainer>
+                <div className="absolute bottom-4 left-4 right-4 z-[400] bg-brand-panel/90 backdrop-blur-md p-3 rounded-lg border border-brand-border text-[10px] font-bold print:hidden">
                   GPS: {complaint.latitude}, {complaint.longitude}
+                </div>
+                <div className="hidden print:block p-4 text-xs font-bold">
+                  Coordinates: {complaint.latitude}, {complaint.longitude}
                 </div>
               </div>
               <div className="p-4 bg-brand-border/20 rounded-xl">
@@ -246,7 +358,7 @@ const ComplaintDetailPage = () => {
                 </div>
                 <div>
                   <p className="text-[10px] font-black uppercase text-brand-muted">Reported By</p>
-                  <p className="text-sm font-bold">User {complaint.user?.name || "Anonymous"}</p>
+                  <p className="text-sm font-bold">{complaint.createdBy?.name || "Anonymous"}</p>
                 </div>
               </div>
               <div className="mt-4 pt-4 border-t border-brand-border">

@@ -33,7 +33,6 @@ const App = () => {
           <Route path="/citizen" element={<CitizenDashboard />} />
           <Route path="/report" element={<ReportComplaintPage />} />
           <Route path="/explore" element={<ExplorePage />} />
-          <Route path="/profile" element={<ProfilePage />} />
         </Route>
 
         <Route element={<ProtectedRoute roles={["Authority"]} />}>
@@ -47,6 +46,7 @@ const App = () => {
         <Route element={<ProtectedRoute roles={["Citizen", "Authority", "Admin"]} />}>
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/complaints/:id" element={<ComplaintDetailPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

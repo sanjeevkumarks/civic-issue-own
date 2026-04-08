@@ -52,6 +52,10 @@ router.put("/complaints/:id", protect, authorize("Authority"), async (req, res) 
       return res.status(403).json({ message: "Cannot update complaints outside your department" });
     }
 
+    if (complaint.status === "Resolved") {
+      return res.status(400).json({ message: "Resolved complaints are locked and cannot be changed" });
+    }
+
     if (status) {
       complaint.status = status;
     }

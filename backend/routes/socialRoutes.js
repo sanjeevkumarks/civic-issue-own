@@ -31,10 +31,17 @@ router.get("/feed", protect, async (req, res) => {
     return acc;
   }, {});
 
+  const likedByUser = new Set(
+    upvotes
+      .filter((u) => String(u.userId) === String(req.user._id))
+      .map((u) => String(u.complaintId))
+  );
+
   res.json(
     complaints.map((c) => ({
       ...c.toObject(),
       upvotesCount: upvoteCount[String(c._id)] || 0,
+      likedByMe: likedByUser.has(String(c._id)),
       comments: commentMap.get(String(c._id)) || []
     }))
   );

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../api";
 import { useAuth } from "../context/AuthContext";
@@ -19,10 +19,30 @@ const RegisterPage = () => {
     email: "",
     password: "",
     role: "Citizen",
-    department: "General Civic"
+    department: ""
   });
+  const [departments, setDepartments] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const loadDepartments = async () => {
+      try {
+        const { data } = await api.get("/departments");
+        setDepartments(data);
+      } catch (err) {
+        setDepartments([]);
+      }
+    };
+    loadDepartments();
+  }, []);
+
+  useEffect(() => {
+    setForm((prev) => ({
+      ...prev,
+      department: prev.role === "Authority" ? prev.department : ""
+    }));
+  }, [form.role]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -42,23 +62,23 @@ const RegisterPage = () => {
     <div className="min-h-[90vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <Card className="max-w-xl w-full p-8 space-y-8 relative overflow-hidden">
         {isSaas && (
-          <div className="absolute -top-12 -left-12 w-32 h-32 bg-brand-primary/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -top-12 -left-12 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
         )}
         
         <div className="text-center relative z-10">
           <div className={cn(
             "mx-auto h-12 w-12 flex items-center justify-center rounded-xl mb-4",
-            isSaas ? "bg-gradient-to-br from-brand-primary to-purple-500 text-white shadow-lg" : "bg-brand-primary text-white"
+            isSaas ? "bg-gradient-to-br from-purple-500 to-blue-600 text-white shadow-lg" : "bg-blue-600 text-white"
           )}>
             <UserPlus size={28} />
           </div>
           <h2 className={cn(
-            "text-3xl font-black tracking-tighter",
-            isGov && "uppercase text-brand-primary"
+            "text-3xl font-black tracking-tighter text-gray-900",
+            isGov && "uppercase text-blue-600"
           )}>
-            Create <span className="text-brand-primary">Account</span>
+            Create <span className="text-blue-600">Account</span>
           </h2>
-          <p className="mt-2 text-sm text-brand-muted font-semibold">
+          <p className="mt-2 text-sm text-gray-600 font-semibold">
             Join the Digital Civic Response network today.
           </p>
         </div>
@@ -66,7 +86,7 @@ const RegisterPage = () => {
         <form className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6" onSubmit={handleSubmit}>
           <div className="space-y-4 md:col-span-2">
             <div className="relative">
-              <User className="absolute left-3 top-[38px] text-brand-muted" size={18} />
+              <User className="absolute left-3 top-[38px] text-gray-600" size={18} />
               <Input
                 label="Full Name"
                 placeholder="Jane Doe"
@@ -80,7 +100,7 @@ const RegisterPage = () => {
 
           <div className="space-y-4">
             <div className="relative">
-              <Mail className="absolute left-3 top-[38px] text-brand-muted" size={18} />
+              <Mail className="absolute left-3 top-[38px] text-gray-600" size={18} />
               <Input
                 label="Email Address"
                 type="email"
@@ -93,7 +113,7 @@ const RegisterPage = () => {
             </div>
 
             <div className="relative">
-              <Lock className="absolute left-3 top-[38px] text-brand-muted" size={18} />
+              <Lock className="absolute left-3 top-[38px] text-gray-600" size={18} />
               <Input
                 label="Password"
                 type="password"
@@ -111,30 +131,41 @@ const RegisterPage = () => {
             <Select
               label="Account Role"
               value={form.role}
-              onChange={(e) => setForm((prev) => ({ ...prev, role: e.target.value }))}
+              onChange={(e) => setForm((prev) => ({
+                ...prev,
+                role: e.target.value,
+                department: e.target.value === "Authority" ? prev.department : ""
+              }))}
             >
               <option value="Citizen">Citizen</option>
               <option value="Authority">Authority</option>
               <option value="Admin">Admin</option>
             </Select>
 
-            {form.role !== "Citizen" && (
+            {form.role === "Authority" && (
               <div className="relative">
-                <Building2 className="absolute left-3 top-[38px] text-brand-muted" size={18} />
-                <Input
+                <Building2 className="absolute left-3 top-[38px] text-gray-600" size={18} />
+                <Select
                   label="Department"
-                  placeholder="e.g. Sanitation"
                   className="pl-10"
                   value={form.department}
                   onChange={(e) => setForm((prev) => ({ ...prev, department: e.target.value }))}
-                />
+                  required
+                >
+                  <option value="">Select department</option>
+                  {departments.map((department) => (
+                    <option key={department._id} value={department.name}>
+                      {department.name}
+                    </option>
+                  ))}
+                </Select>
               </div>
             )}
           </div>
 
           <div className="md:col-span-2 space-y-6 pt-4">
             {error && (
-              <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center gap-3 text-rose-500 text-xs font-black uppercase">
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3 text-red-700 text-xs font-black uppercase">
                 <AlertCircle size={18} />
                 {error}
               </div>
@@ -150,8 +181,8 @@ const RegisterPage = () => {
             </Button>
 
             <p className="text-center text-sm font-semibold">
-              <span className="text-brand-muted">Already registered?</span>{" "}
-              <Link to="/login" className="text-brand-primary hover:underline">
+              <span className="text-gray-600">Already registered?</span>{" "}
+              <Link to="/login" className="text-blue-600 hover:underline">
                 Sign in to your portal
               </Link>
             </p>
@@ -163,4 +194,3 @@ const RegisterPage = () => {
 };
 
 export default RegisterPage;
-

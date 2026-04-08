@@ -1,39 +1,53 @@
+import { useState } from "react";
+import { useLocation } from "react-router-dom";
 import { Navbar } from "./Navbar";
+import { Sidebar } from "./Sidebar";
 import { useUI } from "../../context/UIContext";
 import { cn } from "../../utils/ui";
+import { motion } from "framer-motion";
 
 export const AppLayout = ({ children }) => {
-  const { isSaas, isGov } = useUI();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const location = useLocation();
+  
+  // Hide sidebar and navbar for auth pages
+  const isAuthPage = ["/login", "/register"].includes(location.pathname);
 
   return (
-    <div className="min-h-screen flex flex-col relative overflow-x-hidden">
-      {/* Background decoration for SaaS mode */}
-      {isSaas && (
-        <>
-          <div className="fixed -top-24 -left-24 w-96 h-96 bg-brand-primary/10 rounded-full blur-[100px] pointer-events-none -z-10" />
-          <div className="fixed top-1/2 -right-24 w-80 h-80 bg-purple-500/10 rounded-full blur-[100px] pointer-events-none -z-10" />
-          <div className="fixed -bottom-24 left-1/2 w-96 h-96 bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none -z-10" />
-        </>
-      )}
+    <div className={cn("min-h-screen flex bg-white", isAuthPage && "bg-gradient-to-br from-gray-50 via-white to-gray-100")}>
+      {/* Modern Sidebar - Hidden on auth pages */}
+      {!isAuthPage && <Sidebar open={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />}
 
-      <Navbar />
-      
-      <main className={cn(
-        "flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 pb-20",
-        isSaas ? "animate-fade-in" : ""
-      )}>
-        {children}
-      </main>
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header - Hidden on auth pages */}
+        {!isAuthPage && <Navbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} sidebarOpen={sidebarOpen} />}
 
-      {/* Footer / Status Bar */}
-      <footer className={cn(
-        "py-6 px-4 border-t mt-auto text-center",
-        isSaas ? "bg-brand-panel/50 backdrop-blur-md border-brand-border" : isGov ? "bg-slate-900 text-white border-none" : "bg-white dark:bg-slate-900 border-t-2 border-brand-border"
-      )}>
-        <p className="text-sm opacity-60 font-semibold tracking-tighter">
-          &copy; 2026 DIGITAL CIVIC RESPONSE SYSTEM • CONNECTED TO GOVERNMENT GATEWAY
-        </p>
-      </footer>
+        {/* Main Content */}
+        <motion.main
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className={cn(
+            "flex-1 overflow-y-auto",
+            !isAuthPage && "p-6 md:p-8 bg-gradient-to-br from-gray-50 to-white",
+            isAuthPage && "bg-gradient-to-br from-gray-50 via-white to-gray-100"
+          )}
+        >
+          <div className={cn(!isAuthPage && "max-w-7xl mx-auto")}>
+            {children}
+          </div>
+        </motion.main>
+
+        {/* Footer - Hidden on auth pages */}
+        {!isAuthPage && (
+          <footer className="border-t border-gray-200 bg-white py-4 px-6 md:px-8">
+            <p className="text-xs text-gray-500 dark:text-gray-400 text-center font-medium tracking-wider uppercase">
+              © 2026 Digital Civic Response System • Connected to Government Gateway
+            </p>
+          </footer>
+        )}
+      </div>
     </div>
   );
 };

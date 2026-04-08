@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import api from "../api";
 import ComplaintCard from "../components/ComplaintCard";
 import { useUI } from "../context/UIContext";
@@ -17,9 +18,8 @@ import {
   Search, 
   Filter, 
   Save,
-  ChevronRight,
   MapPin,
-  ExternalLink
+  PieChart
 } from "lucide-react";
 import { getSocket } from "../socket";
 
@@ -27,6 +27,7 @@ const statuses = ["", "Pending", "In Progress", "Resolved"];
 
 const AuthorityDashboard = () => {
   const { isGov, isSaas, isMinimal } = useUI();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [complaints, setComplaints] = useState([]);
   const [statusFilter, setStatusFilter] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -35,6 +36,7 @@ const AuthorityDashboard = () => {
   const [drafts, setDrafts] = useState({});
   const [expandedId, setExpandedId] = useState(null);
   const [onDuty, setOnDuty] = useState(false);
+  const activeTab = searchParams.get("tab") || "dashboard";
 
   const fetchComplaints = async (status = "") => {
     setLoading(true);
@@ -93,8 +95,16 @@ const AuthorityDashboard = () => {
   };
 
   const submitUpdate = async (id) => {
+    const complaint = complaints.find((item) => item._id === id);
+    if (complaint?.status === "Resolved") {
+      setError("Resolved complaints are locked and cannot be changed");
+      return;
+    }
     try {
-      const payload = drafts[id] || {};
+      const payload = { ...(drafts[id] || {}) };
+      if (payload.status === "Resolved") {
+        payload.progress = 100;
+      }
       await api.put(`/authority/complaints/${id}`, payload);
       setExpandedId(null);
       await fetchComplaints(statusFilter);
@@ -114,6 +124,14 @@ const AuthorityDashboard = () => {
     inProgress: complaints.filter(c => c.status === "In Progress").length,
     resolved: complaints.filter(c => c.status === "Resolved").length,
   };
+
+  const categoryBreakdown = useMemo(() => {
+    const counts = {};
+    complaints.forEach((complaint) => {
+      counts[complaint.category] = (counts[complaint.category] || 0) + 1;
+    });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  }, [complaints]);
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center min-h-[400px]">
@@ -143,6 +161,23 @@ const AuthorityDashboard = () => {
         </div>
       </div>
 
+      <div className="flex flex-wrap gap-2">
+        {[
+          { key: "dashboard", label: "Dashboard" },
+          { key: "reports", label: "Reports" },
+          { key: "analytics", label: "Analytics" }
+        ].map((tab) => (
+          <Button
+            key={tab.key}
+            variant={activeTab === tab.key ? "primary" : "secondary"}
+            size="sm"
+            onClick={() => setSearchParams(tab.key === "dashboard" ? {} : { tab: tab.key })}
+          >
+            {tab.label}
+          </Button>
+        ))}
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatWidget label="Assigned" value={stats.total} icon={ClipboardList} color="primary" />
@@ -151,34 +186,35 @@ const AuthorityDashboard = () => {
         <StatWidget label="Completed" value={stats.resolved} icon={CheckCircle} color="success" />
       </div>
 
-      {/* Toolbar */}
-      <Card className="p-4 flex flex-col md:flex-row gap-4 items-center">
-        <div className="relative flex-1 w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-muted" size={18} />
-          <input 
-            type="text" 
-            placeholder="Search by title or location..." 
-            className="w-full pl-10 pr-4 py-2 bg-brand-border/20 rounded-xl border-none focus:ring-2 ring-brand-primary/20 outline-none"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        
-        <div className="flex items-center gap-2 w-full md:w-auto">
-          <Filter size={18} className="text-brand-muted ml-2" />
-          <Select 
-            className="min-w-[150px] py-1.5 text-sm"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            {statuses.map((status) => (
-              <option key={status || "all"} value={status}>
-                {status || "All Statuses"}
-              </option>
-            ))}
-          </Select>
-        </div>
-      </Card>
+      {activeTab !== "analytics" && (
+        <Card className="p-4 flex flex-col md:flex-row gap-4 items-center">
+          <div className="relative flex-1 w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-muted" size={18} />
+            <input 
+              type="text" 
+              placeholder="Search by title or location..." 
+              className="w-full pl-10 pr-4 py-2 bg-brand-border/20 rounded-xl border-none focus:ring-2 ring-brand-primary/20 outline-none"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <Filter size={18} className="text-brand-muted ml-2" />
+            <Select 
+              className="min-w-[150px] py-1.5 text-sm"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              {statuses.map((status) => (
+                <option key={status || "all"} value={status}>
+                  {status || "All Statuses"}
+                </option>
+              ))}
+            </Select>
+          </div>
+        </Card>
+      )}
 
       {error && (
         <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center gap-3 text-rose-500 font-bold uppercase text-xs">
@@ -187,8 +223,50 @@ const AuthorityDashboard = () => {
         </div>
       )}
 
-      {/* Grid or Table based on Mode */}
-      {isGov ? (
+      {activeTab === "analytics" ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card className="p-6">
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+              <PieChart size={18} className="text-brand-primary" />
+              Status Summary
+            </h3>
+            <div className="space-y-4">
+              {[
+                { label: "Pending", value: stats.pending, tone: "bg-rose-500" },
+                { label: "In Progress", value: stats.inProgress, tone: "bg-amber-500" },
+                { label: "Resolved", value: stats.resolved, tone: "bg-emerald-500" }
+              ].map((item) => (
+                <div key={item.label} className="space-y-2">
+                  <div className="flex justify-between text-sm font-semibold">
+                    <span>{item.label}</span>
+                    <span>{item.value}</span>
+                  </div>
+                  <div className="h-3 rounded-full bg-brand-border/30 overflow-hidden">
+                    <div
+                      className={item.tone}
+                      style={{ width: `${stats.total ? Math.max((item.value / stats.total) * 100, item.value ? 8 : 0) : 0}%`, height: "100%" }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <h3 className="text-lg font-bold mb-4">Category Breakdown</h3>
+            <div className="space-y-4">
+              {categoryBreakdown.length ? categoryBreakdown.map(([label, value]) => (
+                <div key={label} className="flex items-center justify-between border-b border-brand-border pb-3">
+                  <span className="font-semibold">{label}</span>
+                  <span className="text-sm font-black text-brand-primary">{value}</span>
+                </div>
+              )) : (
+                <p className="text-brand-muted">No complaint data available.</p>
+              )}
+            </div>
+          </Card>
+        </div>
+      ) : isGov ? (
         <Card className="overflow-hidden border-2">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -204,6 +282,7 @@ const AuthorityDashboard = () => {
               <tbody className="divide-y border-brand-border">
                 {filteredComplaints.map((complaint) => {
                   const isExpanded = expandedId === complaint._id;
+                  const isLocked = complaint.status === "Resolved";
                   const draft = drafts[complaint._id] || {
                     status: complaint.status,
                     progress: complaint.progress,
@@ -250,9 +329,10 @@ const AuthorityDashboard = () => {
                             variant="secondary" 
                             size="sm" 
                             className="text-xs font-black"
+                            disabled={isLocked}
                             onClick={() => setExpandedId(isExpanded ? null : complaint._id)}
                           >
-                            {isExpanded ? "CLOSE" : "MANAGE"}
+                            {isLocked ? "LOCKED" : isExpanded ? "CLOSE" : "MANAGE"}
                           </Button>
                         </td>
                       </tr>
@@ -264,7 +344,11 @@ const AuthorityDashboard = () => {
                                 <Select 
                                   label="Update Status"
                                   value={draft.status}
-                                  onChange={(e) => updateDraft(complaint._id, { status: e.target.value })}
+                                  disabled={isLocked}
+                                  onChange={(e) => updateDraft(complaint._id, {
+                                    status: e.target.value,
+                                    progress: e.target.value === "Resolved" ? 100 : draft.progress
+                                  })}
                                 >
                                   <option value="Pending">Pending</option>
                                   <option value="In Progress">In Progress</option>
@@ -276,6 +360,7 @@ const AuthorityDashboard = () => {
                                   min={0}
                                   max={100}
                                   value={draft.progress}
+                                  disabled={isLocked || draft.status === "Resolved"}
                                   onChange={(e) => updateDraft(complaint._id, { progress: Number(e.target.value) })}
                                 />
                               </div>
@@ -285,11 +370,12 @@ const AuthorityDashboard = () => {
                                   rows={4}
                                   placeholder="Describe the action taken or reason for status change..."
                                   value={draft.comment}
+                                  disabled={isLocked}
                                   onChange={(e) => updateDraft(complaint._id, { comment: e.target.value })}
                                 />
                                 <div className="flex justify-end gap-2">
                                   <Button variant="ghost" size="sm" onClick={() => setExpandedId(null)}>Cancel</Button>
-                                  <Button variant="primary" size="sm" onClick={() => submitUpdate(complaint._id)}>
+                                  <Button variant="primary" size="sm" disabled={isLocked} onClick={() => submitUpdate(complaint._id)}>
                                     <Save size={16} className="mr-2" /> Save & Broadcast
                                   </Button>
                                 </div>
@@ -308,6 +394,7 @@ const AuthorityDashboard = () => {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {filteredComplaints.map((complaint) => {
+            const isLocked = complaint.status === "Resolved";
             const draft = drafts[complaint._id] || {
               status: complaint.status,
               progress: complaint.progress,
@@ -321,7 +408,11 @@ const AuthorityDashboard = () => {
                     <Select
                       className="text-xs"
                       value={draft.status}
-                      onChange={(e) => updateDraft(complaint._id, { status: e.target.value })}
+                      disabled={isLocked}
+                      onChange={(e) => updateDraft(complaint._id, {
+                        status: e.target.value,
+                        progress: e.target.value === "Resolved" ? 100 : draft.progress
+                      })}
                     >
                       <option value="Pending">Pending</option>
                       <option value="In Progress">In Progress</option>
@@ -333,6 +424,7 @@ const AuthorityDashboard = () => {
                       min={0}
                       max={100}
                       value={draft.progress}
+                      disabled={isLocked || draft.status === "Resolved"}
                       onChange={(e) => updateDraft(complaint._id, { progress: Number(e.target.value) })}
                     />
                   </div>
@@ -341,10 +433,11 @@ const AuthorityDashboard = () => {
                     className="text-xs"
                     rows={2}
                     value={draft.comment}
+                    disabled={isLocked}
                     onChange={(e) => updateDraft(complaint._id, { comment: e.target.value })}
                   />
-                  <Button className="w-full text-xs font-bold" onClick={() => submitUpdate(complaint._id)}>
-                    Update Status
+                  <Button className="w-full text-xs font-bold" disabled={isLocked} onClick={() => submitUpdate(complaint._id)}>
+                    {isLocked ? "Resolved and Locked" : "Update Status"}
                   </Button>
                 </div>
               </ComplaintCard>

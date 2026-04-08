@@ -48,17 +48,17 @@ const LoginPage = () => {
         <div className="text-center relative z-10">
           <div className={cn(
             "mx-auto h-12 w-12 flex items-center justify-center rounded-xl mb-4",
-            isSaas ? "bg-gradient-to-br from-brand-primary to-purple-500 text-white shadow-lg" : "bg-brand-primary text-white"
+            isSaas ? "bg-gradient-to-br from-purple-500 to-blue-600 text-white shadow-lg" : "bg-blue-600 text-white"
           )}>
             <ShieldCheck size={28} />
           </div>
           <h2 className={cn(
-            "text-3xl font-black tracking-tighter",
-            isGov && "uppercase text-brand-primary"
+            "text-3xl font-black tracking-tighter text-gray-900",
+            isGov && "uppercase text-blue-600"
           )}>
-            Welcome <span className="text-brand-primary">Back</span>
+            Welcome <span className="text-blue-600">Back</span>
           </h2>
-          <p className="mt-2 text-sm text-brand-muted font-semibold">
+          <p className="mt-2 text-sm text-gray-600 font-semibold">
             Secure access to the Digital Civic Response System
           </p>
         </div>
@@ -66,7 +66,7 @@ const LoginPage = () => {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div className="relative">
-              <Mail className="absolute left-3 top-[38px] text-brand-muted" size={18} />
+              <Mail className="absolute left-3 top-[38px] text-gray-600" size={18} />
               <Input
                 label="Email Address"
                 type="email"
@@ -79,7 +79,7 @@ const LoginPage = () => {
             </div>
 
             <div className="relative">
-              <Lock className="absolute left-3 top-[38px] text-brand-muted" size={18} />
+              <Lock className="absolute left-3 top-[38px] text-gray-600" size={18} />
               <Input
                 label="Security Password"
                 type="password"
@@ -93,7 +93,7 @@ const LoginPage = () => {
           </div>
 
           {error && (
-            <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center gap-3 text-rose-500 text-xs font-black uppercase">
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3 text-red-700 text-xs font-black uppercase">
               <AlertCircle size={18} />
               {error}
             </div>
@@ -109,8 +109,8 @@ const LoginPage = () => {
           </Button>
 
           <p className="text-center text-sm font-semibold">
-            <span className="text-brand-muted">New to the system?</span>{" "}
-            <Link to="/register" className="text-brand-primary hover:underline">
+            <span className="text-gray-600">New to the system?</span>{" "}
+            <Link to="/register" className="text-blue-600 hover:underline">
               Create an account
             </Link>
           </p>
